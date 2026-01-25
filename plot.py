@@ -1,110 +1,148 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+from mpl_toolkits.mplot3d import Axes3D
+import numpy as np
 import subprocess
-import sys
 import os
+import sys
 
+# --- 1. Run Simulation ---
 def run_simulation():
-    print("--- [Auto-Pilot] Starting Build & Run Sequence ---")
-
-    if os.path.exists("telemetry.csv"):
-        os.remove("telemetry.csv")
-
-    # Step A: Compile (Optional, assumes Makefile exists)
-    print("Building C++ binary...")
-    subprocess.run(["make", "all"], check=True)
-
-    # Step B: Run Simulation
-    print("Running Simulation Kernel...")
-    with open("telemetry.csv", "w") as outfile:
-        # Calls the executable directly and pipes stdout to CSV
-        result = subprocess.run(["./sim"], stdout=outfile, text=True)
-        
-    if result.returncode != 0:
-        print("Error: Simulation crashed!")
-        sys.exit(1)
-        
-    print("Simulation Complete. Data logged to telemetry.csv")
-
-# --- 2. Visualization Section ---
-def plot_analysis():
-    # Load Data
+    print("--- [Auto-Pilot] Building & Running Simulation ---")
+    
+    # 1. Clean old data
+    if os.path.exists("telemetry.csv"): os.remove("telemetry.csv")
+    
+    # 2. FORCE RECOMPILE (Crucial Fix)
     try:
-        df = pd.read_csv('telemetry.csv')
-    except Exception as e:
-        print(f"Failed to read CSV: {e}")
-        return
+        print("Compiling...")
+        subprocess.run(["make", "all"], check=True)
+    except subprocess.CalledProcessError:
+        print("[F] Compilation Failed! Check your C++ code.")
+        sys.exit(1)
 
-    # Derive Acceleration (dv/dt) for smoother analysis
-    df['AccelZ_Calc'] = df['VelZ'].diff() / df['Time'].diff()
-    # Smooth the acceleration slightly to remove numerical noise from differentiation
-    df['AccelZ_Calc'] = df['AccelZ_Calc'].rolling(window=5).mean()
+    # 3. Run Binary
+    print("Running ./sim...")
+    with open("telemetry.csv", "w") as outfile:
+        result = subprocess.run(["./sim"], stdout=outfile, text=True)
+    
+    if result.returncode != 0:
+        print("[F] Simulation crashed!")
+        sys.exit(1)
+    print("[P] Simulation Complete.")
 
-    # Setup Dashboard (3 Rows, 1 Column)
-    plt.style.use('bmh') # Clean engineering style
-    fig, (ax_elec, ax_mech, ax_kin) = plt.subplots(3, 1, figsize=(10, 12), sharex=True)
-    
-    fig.suptitle('Drone System Step Response (0V -> 12V -> 0V)', fontsize=16)
+# --- 2. 3D Animation Class ---
+class DroneVisualizer:
+    def __init__(self, df):
+        self.df = df
+        self.fig = plt.figure(figsize=(10, 8))
+        self.ax = self.fig.add_subplot(111, projection='3d')
+        self.ax.set_title("Drone Flight: PID Hover + Wind (Blue) + Thrust (Red)")
+        
+        # Plot Elements
+        self.drone_frame, = self.ax.plot([], [], [], 'k-', linewidth=3, label='Drone Frame')
+        self.traj_line, = self.ax.plot([], [], [], 'g:', alpha=0.5, label='Trajectory')
+        
+        # Vectors (Thrust & Wind)
+        self.quivers = []
 
-    # --- ROW 1: Electrical System (Voltage & Current) ---
-    # We use dual y-axes here
-    color_v = 'tab:red'
-    color_i = 'tab:orange'
-    
-    ax_elec.set_ylabel('Input Voltage (V)', color=color_v, fontweight='bold')
-    l1 = ax_elec.plot(df['Time'], df['Voltage'], color=color_v, label='Voltage In', linestyle='--')
-    ax_elec.tick_params(axis='y', labelcolor=color_v)
-    ax_elec.grid(True, alpha=0.3)
+        # Set Limits
+        self.ax.set_xlim(-2, 2)
+        self.ax.set_ylim(-2, 2)
+        self.ax.set_zlim(0, 6) # Zoomed in for hover
+        self.ax.set_xlabel('X (m)')
+        self.ax.set_ylabel('Y (m)')
+        self.ax.set_zlabel('Altitude (m)')
+        self.ax.legend()
 
-    ax_elec2 = ax_elec.twinx()  # Create second y-axis
-    ax_elec2.set_ylabel('Total Current (A)', color=color_i, fontweight='bold')
-    l2 = ax_elec2.plot(df['Time'], df['Current'], color=color_i, label='Current Draw')
-    ax_elec2.tick_params(axis='y', labelcolor=color_i)
-    
-    # Combine legends
-    lns = l1 + l2
-    labs = [l.get_label() for l in lns]
-    ax_elec.legend(lns, labs, loc='upper left')
-    ax_elec.set_title('Electrical Domain', fontsize=10)
+    def get_rotation_matrix(self, w, x, y, z):
+        Nq = w*w + x*x + y*y + z*z
+        s = 2.0/Nq if Nq > 0 else 0
+        X, Y, Z = x*s, y*s, z*s
+        wX, wY, wZ = w*X, w*Y, w*Z
+        xX, xY, xZ = x*X, x*Y, x*Z
+        yY, yZ = y*Y, y*Z
+        zZ = z*Z 
+        
+        # Corrected Matrix:
+        # 1. Added zZ definition above
+        # 2. Fixed wF -> wX
+        return np.array([
+            [1.0-(yY+zZ), xY-wZ, xZ+wY],
+            [xY+wZ, 1.0-(xX+zZ), yZ-wX],
+            [xZ-wY, yZ+wX, 1.0-(xX+yY)]
+        ])
 
-    # --- ROW 2: Propulsion Domain (RPM & Inertia) ---
-    color_rpm = 'tab:purple'
-    ax_mech.plot(df['Time'], df['RPM'], color=color_rpm, linewidth=2)
-    ax_mech.set_ylabel('Motor Speed (RPM)', color=color_rpm, fontweight='bold')
-    ax_mech.fill_between(df['Time'], df['RPM'], alpha=0.1, color=color_rpm)
-    ax_mech.set_title('Mechanical Domain (Inertia Lag)', fontsize=10)
-    
-    # Annotation for Lag
-    peak_rpm_time = df.loc[df['RPM'].idxmax(), 'Time']
-    # If the step down was at 0.6, calculate lag
-    lag_time = peak_rpm_time - 0.6
-    if lag_time > 0:
-        ax_mech.annotate(f'Inertia Lag: {lag_time*1000:.0f}ms', 
-                         xy=(peak_rpm_time, df['RPM'].max()), 
-                         xytext=(peak_rpm_time+0.1, df['RPM'].max()),
-                         arrowprops=dict(facecolor='black', shrink=0.05))
+    def update(self, num):
+        row = self.df.iloc[num]
+        
+        # 1. Update Trajectory
+        history = self.df.iloc[:num]
+        self.traj_line.set_data(history['PosX'], history['PosY'])
+        self.traj_line.set_3d_properties(history['PosZ'])
 
-    # --- ROW 3: Kinematic Domain (Velocity & Accel) ---
-    color_vel = 'tab:blue'
-    color_acc = 'tab:green'
-    
-    ax_kin.plot(df['Time'], df['VelZ'], color=color_vel, label='Vertical Vel (m/s)', linewidth=2)
-    ax_kin.set_ylabel('Velocity (m/s)', color=color_vel, fontweight='bold')
-    ax_kin.axhline(0, color='black', linewidth=1)
-    
-    # Dual axis for Acceleration
-    ax_kin2 = ax_kin.twinx()
-    ax_kin2.plot(df['Time'], df['AccelZ_Calc'], color=color_acc, linestyle=':', label='G-Force (Calc)', alpha=0.6)
-    ax_kin2.set_ylabel('Accel (m/s²)', color=color_acc)
-    
-    ax_kin.legend(loc='upper left')
-    ax_kin.set_title('Kinematic Response', fontsize=10)
-    ax_kin.set_xlabel('Time (s)', fontsize=12, fontweight='bold')
+        # 2. Draw Drone Body
+        pos = np.array([row['PosX'], row['PosY'], row['PosZ']])
+        arm_len = 0.25
+        body_arms = np.array([
+            [arm_len, 0, 0], [-arm_len, 0, 0], 
+            [0, arm_len, 0], [0, -arm_len, 0]
+        ]).T 
+        
+        R = self.get_rotation_matrix(row['Qw'], row['Qx'], row['Qy'], row['Qz'])
+        world_arms = R @ body_arms + pos[:, np.newaxis]
+        
+        lx = [world_arms[0,0], world_arms[0,1]]
+        ly = [world_arms[1,0], world_arms[1,1]]
+        lz = [world_arms[2,0], world_arms[2,1]]
+        
+        lx2 = [world_arms[0,2], world_arms[0,3]]
+        ly2 = [world_arms[1,2], world_arms[1,3]]
+        lz2 = [world_arms[2,2], world_arms[2,3]]
+        
+        self.drone_frame.set_data(lx + [np.nan] + lx2, ly + [np.nan] + ly2)
+        self.drone_frame.set_3d_properties(lz + [np.nan] + lz2)
 
-    plt.tight_layout()
-    print("Dashboard generated: Displaying...")
-    plt.show()
+        # 3. Draw Vectors
+        vec_origins = [pos, pos]
+        vec_dirs = [
+            np.array([row['Fx_Thrust'], row['Fy_Thrust'], row['Fz_Thrust']]),
+            np.array([row['Fx_Wind'], row['Fy_Wind'], row['Fz_Wind']])
+        ]
+        colors = ['r', 'b']
+        
+        for q in self.quivers: q.remove()
+        self.quivers = []
+        
+        for o, d, c in zip(vec_origins, vec_dirs, colors):
+            norm = np.linalg.norm(d)
+            if norm > 0.1: 
+                # Normalize length for visualization, but keep direction
+                q = self.ax.quiver(o[0], o[1], o[2], 
+                                   d[0], d[1], d[2], 
+                                   length=norm*0.05, normalize=True, color=c)
+                self.quivers.append(q)
+
+        return self.drone_frame, self.traj_line
+
+    def animate(self):
+        ani = animation.FuncAnimation(self.fig, self.update, frames=len(self.df), interval=50, blit=False)
+        plt.show()
 
 if __name__ == "__main__":
     run_simulation()
-    plot_analysis()
+    
+    try:
+        df = pd.read_csv('telemetry.csv')
+        # Check for required columns
+        required = ['PosX', 'PosY', 'PosZ', 'Qw', 'Qx', 'Qy', 'Qz']
+        if not all(col in df.columns for col in required):
+            print(f"[F] CSV Header Mismatch! Found: {list(df.columns)}")
+            print("Make sure main.cpp is updating the headers correctly.")
+            sys.exit(1)
+            
+        vis = DroneVisualizer(df)
+        vis.animate()
+    except Exception as e:
+        print(f"[F] Error: {e}")
