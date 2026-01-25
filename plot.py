@@ -50,7 +50,7 @@ class DroneVisualizer:
         # Set Limits
         self.ax.set_xlim(-2, 2)
         self.ax.set_ylim(-2, 2)
-        self.ax.set_zlim(0, 6) # Zoomed in for hover
+        self.ax.set_zlim(-5, 6)
         self.ax.set_xlabel('X (m)')
         self.ax.set_ylabel('Y (m)')
         self.ax.set_zlabel('Altitude (m)')

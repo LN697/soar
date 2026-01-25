@@ -7,7 +7,7 @@ int main() {
     Drone drone;
     
     const double dt = 0.001; 
-    const double sim_duration = 5.0; 
+    const double sim_duration = 10.0; 
     double current_time = 0.0; 
     
     // CSV Header (Matches plot.py)
@@ -25,9 +25,9 @@ int main() {
 
         // 2. Wind Gust Generation
         Vec3 wind(0,0,0);
-        if (current_time > 2.0 && current_time < 4.0) {
-            wind = Vec3(2.0, 0.5, 0); 
-        }
+        // if (current_time > 2.0 && current_time < 4.0) {
+        //     wind = Vec3(2.0, 0.5, 0); 
+        // }
 
         // 3. Physics Step
         std::array<double, 4> inputs;

@@ -4,7 +4,7 @@
 #include <cmath>
 
 Drone::Drone() 
-    : battery({4, 3.7, 1500, 100, 0.01}),
+    : battery({4, 3.7, 1500, 100, 0.002}),
       altitudePID({5.0, 1.0, 2.5, -10.0, 10.0, 50.0}), // PID Params: Kp, Ki, Kd, Min, Max, I_Max
       INERTIA_TENSOR((Mat3() << 0.005, 0, 0, 0, 0.005, 0, 0, 0, 0.010).finished())
 {
@@ -34,7 +34,7 @@ Scalar Drone::updateAltitude(Scalar dt, Scalar target_altitude) {
     // Inverting the Propeller/Motor math is hard analytically, 
     // so we stick to the empirical estimate for this specific drone config.
     // Based on previous sims, 2300Kv on 4S needs ~7.0V to hover 1kg.
-    const Scalar FEED_FORWARD_VOLTAGE = 1000.0; 
+    const Scalar FEED_FORWARD_VOLTAGE = 7.5; 
     
     // 4. Combine
     Scalar final_command = FEED_FORWARD_VOLTAGE + pid_output;

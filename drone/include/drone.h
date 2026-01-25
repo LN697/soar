@@ -35,11 +35,8 @@ class Drone {
     public:
         Drone();
 
-        // New High-Level Control Interface
-        // Returns the throttle command (Voltage) it decided to use
         Scalar updateAltitude(Scalar dt, Scalar target_altitude);
 
-        // Physics Step
         void step(Scalar dt, const std::array<Scalar, 4>& inputs, const Vec3& wind_vector = Vec3::Zero());
 
         Telemetry getTelemetry(double t) const;
@@ -49,8 +46,7 @@ class Drone {
         std::vector<Motor> motors;
         std::vector<Propeller> propellers;
         std::vector<ESC> escs;
-
-        // Embedded Flight Controller
+        
         PID altitudePID; 
 
         DroneState s;
@@ -58,8 +54,7 @@ class Drone {
         const Scalar MASS = 1.0;
         const Scalar ARM_LENGTH = 0.25;
         const Mat3 INERTIA_TENSOR;
-
-        // Visualization Helpers
+        
         Vec3 last_wind_vector = Vec3::Zero();
         Vec3 last_thrust_vector = Vec3::Zero();
 };
