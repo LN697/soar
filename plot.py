@@ -128,7 +128,7 @@ class DroneVisualizer:
 
     def animate(self):
         ani = animation.FuncAnimation(self.fig, self.update, frames=len(self.df), interval=50, blit=False)
-        plt.show()
+        return ani
 
 if __name__ == "__main__":
     run_simulation()
@@ -141,8 +141,112 @@ if __name__ == "__main__":
             print(f"[F] CSV Header Mismatch! Found: {list(df.columns)}")
             print("Make sure main.cpp is updating the headers correctly.")
             sys.exit(1)
-            
+
+        # Save enriched telemetry dump
+        try:
+            df.to_csv('telemetry_full.csv', index=False)
+            print("[P] Wrote telemetry_full.csv with extended telemetry fields.")
+        except Exception as e:
+            print(f"[W] Could not write telemetry_full.csv: {e}")
+
+        # --- TelemetryPlotter: creates multiple windows grouping related data ---
+        class TelemetryPlotter:
+            def __init__(self, df):
+                self.df = df
+                self.t = df['Time'] if 'Time' in df.columns else df.index
+
+            def plot_motors(self):
+                fig, axs = plt.subplots(3, 1, figsize=(10, 8), sharex=True)
+                fig.suptitle("Motor Data (RPMs, Currents, ESC Voltages)")
+
+                # RPMs
+                if all(f'RPM{i}' in self.df.columns for i in range(4)):
+                    for i in range(4):
+                        axs[0].plot(self.t, self.df[f'RPM{i}'], label=f'RPM{i}')
+                    axs[0].set_ylabel('RPM')
+                    axs[0].legend()
+                else:
+                    axs[0].text(0.5, 0.5, 'RPM columns missing', ha='center')
+
+                # Currents
+                if all(f'I{i}' in self.df.columns for i in range(4)):
+                    for i in range(4):
+                        axs[1].plot(self.t, self.df[f'I{i}'], label=f'I{i}')
+                    axs[1].set_ylabel('Current (A)')
+                    axs[1].legend()
+                else:
+                    axs[1].text(0.5, 0.5, 'Per-motor current columns missing', ha='center')
+
+                # ESC Voltages
+                if all(f'ESCV{i}' in self.df.columns for i in range(4)):
+                    for i in range(4):
+                        axs[2].plot(self.t, self.df[f'ESCV{i}'], label=f'ESCV{i}')
+                    axs[2].set_ylabel('Volts')
+                    axs[2].set_xlabel('Time (s)')
+                    axs[2].legend()
+                else:
+                    axs[2].text(0.5, 0.5, 'ESC Voltage columns missing', ha='center')
+
+                fig.tight_layout()
+
+            def plot_battery(self):
+                fig = plt.figure(figsize=(9, 4))
+                ax = fig.add_subplot(111)
+                fig.suptitle('Battery & Power')
+                if 'Voltage_battery' in self.df.columns:
+                    ax.plot(self.t, self.df['Voltage_battery'], label='Voltage (V)')
+                if 'Current_total' in self.df.columns:
+                    ax.plot(self.t, self.df['Current_total'], label='Current (A)')
+                if 'Voltage_battery' in self.df.columns and 'Current_total' in self.df.columns:
+                    ax.plot(self.t, self.df['Voltage_battery'] * self.df['Current_total'], label='Power (W)')
+                ax.set_xlabel('Time (s)')
+                ax.legend()
+
+            def plot_forces(self):
+                fig = plt.figure(figsize=(9, 5))
+                ax = fig.add_subplot(111)
+                fig.suptitle('Forces (Thrust vs Wind)')
+                if all(c in self.df.columns for c in ['Fx_Thrust', 'Fy_Thrust', 'Fz_Thrust']):
+                    ax.plot(self.t, self.df['Fx_Thrust'], label='Fx_Thrust')
+                    ax.plot(self.t, self.df['Fy_Thrust'], label='Fy_Thrust')
+                    ax.plot(self.t, self.df['Fz_Thrust'], label='Fz_Thrust')
+                if all(c in self.df.columns for c in ['Fx_Wind', 'Fy_Wind', 'Fz_Wind']):
+                    ax.plot(self.t, self.df['Fx_Wind'], '--', label='Fx_Wind')
+                    ax.plot(self.t, self.df['Fy_Wind'], '--', label='Fy_Wind')
+                    ax.plot(self.t, self.df['Fz_Wind'], '--', label='Fz_Wind')
+                ax.set_xlabel('Time (s)')
+                ax.legend()
+
+            def plot_position(self):
+                fig = plt.figure(figsize=(9, 4))
+                ax = fig.add_subplot(111)
+                fig.suptitle('Position & Velocity')
+                if all(c in self.df.columns for c in ['PosX', 'PosY', 'PosZ']):
+                    ax.plot(self.t, self.df['PosX'], label='PosX')
+                    ax.plot(self.t, self.df['PosY'], label='PosY')
+                    ax.plot(self.t, self.df['PosZ'], label='PosZ')
+                if all(c in self.df.columns for c in ['VelX', 'VelY', 'VelZ']):
+                    ax.plot(self.t, self.df['VelX'], '--', label='VelX')
+                    ax.plot(self.t, self.df['VelY'], '--', label='VelY')
+                    ax.plot(self.t, self.df['VelZ'], '--', label='VelZ')
+                ax.set_xlabel('Time (s)')
+                ax.legend()
+
+            def plot_all(self):
+                self.plot_motors()
+                self.plot_battery()
+                self.plot_forces()
+                self.plot_position()
+
+        # Create visualizers
         vis = DroneVisualizer(df)
-        vis.animate()
+        plotter = TelemetryPlotter(df)
+        plotter.plot_all()
+
+        # Start animation (returns FuncAnimation object)
+        ani = vis.animate()
+
+        # Show all figures (animation + time-series windows)
+        plt.show()
     except Exception as e:
         print(f"[F] Error: {e}")

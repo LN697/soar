@@ -66,6 +66,10 @@ void Drone::step(Scalar dt, const std::array<Scalar, 4>& throttle_commands, cons
         
         // Pass through ESC
         Scalar v_applied = escs[i].apply(throttle_commands[i], v_battery, motors[i]);
+
+        // Save telemetry for this motor
+        last_esc_voltages[i] = v_applied;
+        last_throttle_cmds[i] = throttle_commands[i];
         
         // Update Motor Physics
         motors[i].update(dt, v_applied, drag_torque);
@@ -123,7 +127,6 @@ void Drone::step(Scalar dt, const std::array<Scalar, 4>& throttle_commands, cons
 Telemetry Drone::getTelemetry(double t) const {
     Telemetry data;
     data.time = t;
-    data.rpm_motor_0 = motors[0].getRPM();
     data.position = s.pos;
     data.velocity = s.vel;
     data.orientation = s.ori;
@@ -131,7 +134,13 @@ Telemetry Drone::getTelemetry(double t) const {
     data.force_gravity = Vec3(0, 0, -9.81 * MASS);
     data.force_wind = last_wind_vector;
     data.current_total = 0;
-    for(const auto& m : motors) data.current_total += m.getCurrent();
+    for(size_t i=0;i<motors.size();++i) {
+        data.rpm_motors[i] = motors[i].getRPM();
+        data.currents[i] = motors[i].getCurrent();
+        data.esc_voltages[i] = last_esc_voltages[i];
+        data.throttle_inputs[i] = last_throttle_cmds[i];
+        data.current_total += motors[i].getCurrent();
+    }
     data.voltage_battery = battery.getVoltage(data.current_total);
     return data;
 }

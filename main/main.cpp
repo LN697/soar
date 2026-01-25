@@ -10,10 +10,16 @@ int main() {
     const double sim_duration = 10.0; 
     double current_time = 0.0; 
     
-    // CSV Header (Matches plot.py)
+    // CSV Header (Extended)
     std::cout << "Time,PosX,PosY,PosZ,Qw,Qx,Qy,Qz,"
               << "Fx_Thrust,Fy_Thrust,Fz_Thrust,"
-              << "Fx_Wind,Fy_Wind,Fz_Wind" << std::endl;
+              << "Fx_Wind,Fy_Wind,Fz_Wind,"
+              << "Voltage_battery,Current_total,"
+              << "RPM0,RPM1,RPM2,RPM3,"
+              << "I0,I1,I2,I3,"
+              << "ESCV0,ESCV1,ESCV2,ESCV3,"
+              << "Throttle0,Throttle1,Throttle2,Throttle3"
+              << std::endl;
     std::cout << std::fixed << std::setprecision(5);
 
     double target_altitude = 5.0; 
@@ -45,8 +51,17 @@ int main() {
                       << t.orientation.w() << "," << t.orientation.x() << "," 
                       << t.orientation.y() << "," << t.orientation.z() << ","
                       << t.force_thrust_world.x() << "," << t.force_thrust_world.y() << "," << t.force_thrust_world.z() << ","
-                      << t.force_wind.x() << "," << t.force_wind.y() << "," << t.force_wind.z()
-                      << std::endl;
+                      << t.force_wind.x() << "," << t.force_wind.y() << "," << t.force_wind.z() << ","
+                      << t.voltage_battery << "," << t.current_total << ",";
+
+            for(int i=0;i<4;++i) std::cout << t.rpm_motors[i] << (i<3? ",":"");
+            std::cout << ",";
+            for(int i=0;i<4;++i) std::cout << t.currents[i] << (i<3? ",":"");
+            std::cout << ",";
+            for(int i=0;i<4;++i) std::cout << t.esc_voltages[i] << (i<3? ",":"");
+            std::cout << ",";
+            for(int i=0;i<4;++i) std::cout << t.throttle_inputs[i] << (i<3? ",":"");
+            std::cout << std::endl;
         }
 
         current_time += dt;

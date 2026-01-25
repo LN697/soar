@@ -13,7 +13,12 @@ struct Telemetry {
     double time;
     double voltage_battery;
     double current_total;
-    double rpm_motor_0;
+
+    // Per-motor telemetry
+    std::array<double,4> rpm_motors;
+    std::array<double,4> currents;
+    std::array<double,4> esc_voltages;
+    std::array<double,4> throttle_inputs;
     
     Vec3 position;
     Vec3 velocity;
@@ -57,4 +62,8 @@ class Drone {
         
         Vec3 last_wind_vector = Vec3::Zero();
         Vec3 last_thrust_vector = Vec3::Zero();
+
+        // Track last ESC voltages and throttle inputs for telemetry
+        std::array<Scalar,4> last_esc_voltages = {0,0,0,0};
+        std::array<Scalar,4> last_throttle_cmds = {0,0,0,0};
 };
