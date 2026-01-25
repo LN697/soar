@@ -7,63 +7,68 @@
 #include "battery.h"
 #include "propeller.h"
 #include "esc.h"
-#include "pid.h"
+#include "imu.h"
+#include "estimator.h"
+#include "controller.h"
 
 struct Telemetry {
     double time;
-    double voltage_battery;
-    double current_total;
-
-    // Per-motor telemetry
-    std::array<double,4> rpm_motors;
-    std::array<double,4> currents;
-    std::array<double,4> esc_voltages;
-    std::array<double,4> throttle_inputs;
     
-    Vec3 position;
-    Vec3 velocity;
-    Quat orientation;
+    // True State
+    Vec3 pos_true;
+    Vec3 vel_true;
+    Quat ori_true;
     
-    Vec3 force_thrust_world;
-    Vec3 force_gravity;
-    Vec3 force_wind;
-};
+    // Estimated State
+    Vec3 pos_est;
+    Vec3 vel_est;
+    Quat ori_est;
+    
+    // Targets
+    Vec3 target_pos;
 
-struct DroneState {
-    Vec3 pos = Vec3::Zero();
-    Vec3 vel = Vec3::Zero();
-    Quat ori = Quat::Identity();
-    Vec3 ang = Vec3::Zero(); 
+    // Physics Debug
+    Vec3 force_drag;
+    Vec3 moment_gyro;
+
+    std::array<double,4> motor_rpm;
+    std::array<double,4> motor_current;
 };
 
 class Drone {
     public:
         Drone();
 
-        Scalar updateAltitude(Scalar dt, Scalar target_altitude);
-
-        void step(Scalar dt, const std::array<Scalar, 4>& inputs, const Vec3& wind_vector = Vec3::Zero());
+        // High Level Step (Runs control + physics)
+        void update(Scalar dt, const ControlInputs& inputs);
 
         Telemetry getTelemetry(double t) const;
 
     private:
+        // Components
         Battery battery;
         std::vector<Motor> motors;
         std::vector<Propeller> propellers;
         std::vector<ESC> escs;
         
-        PID altitudePID; 
+        // Systems
+        IMU imu;
+        Estimator estimator;
+        Controller controller;
 
-        DroneState s;
+        // State
+        Vec3 pos = Vec3::Zero();
+        Vec3 vel = Vec3::Zero();
+        Quat ori = Quat::Identity();
+        Vec3 ang_vel = Vec3::Zero(); // Body Rates
 
+        // Configuration
         const Scalar MASS = 1.0;
-        const Scalar ARM_LENGTH = 0.25;
+        const Scalar ARM_LENGTH = 0.25; // Center to motor
         const Mat3 INERTIA_TENSOR;
         
-        Vec3 last_wind_vector = Vec3::Zero();
-        Vec3 last_thrust_vector = Vec3::Zero();
-
-        // Track last ESC voltages and throttle inputs for telemetry
-        std::array<Scalar,4> last_esc_voltages = {0,0,0,0};
-        std::array<Scalar,4> last_throttle_cmds = {0,0,0,0};
+        // Telemetry Cache
+        ControlInputs last_inputs;
+        Vec3 last_drag = Vec3::Zero();
+        Vec3 last_gyro_moment = Vec3::Zero();
 };
