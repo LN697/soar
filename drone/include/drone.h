@@ -38,8 +38,7 @@ struct Telemetry {
 class Drone {
     public:
         Drone();
-
-        // High Level Step (Runs control + physics)
+        
         void update(Scalar dt, const ControlInputs& inputs);
 
         Telemetry getTelemetry(double t) const;

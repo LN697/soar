@@ -1,4 +1,4 @@
-# Modular Makefile with ImGui Support
+# Modular Makefile
 
 CXX := g++
 STD := -std=c++17
@@ -12,7 +12,7 @@ CPPFLAGS := $(patsubst %,-I%,$(INC_DIRS))
 LDFLAGS = $(shell sdl2-config --libs)
 
 # Sources
-SRCS := $(shell find . -name '*.cpp' ! -path './build/*' ! -path './lib/*' -print | sed 's|^./||')
+SRCS := $(shell find . -name '*.cpp' ! -path './build/*' ! -path './lib/*' -path './test/*' -print | sed 's|^./||')
 
 # Objects
 OBJS := $(patsubst %.cpp,build/%.o,$(SRCS))
@@ -39,3 +39,10 @@ show:
 
 clean:
 	@rm -rf build/ $(TARGET)
+
+.PHONY: test
+
+test:
+	@echo Testing Battery
+	g++ -std=c++17 $(CPPFLAGS) drone/src/battery.cpp test/test_runner.cpp -o battery_test
+	python3 test/stress_test.py battery_test

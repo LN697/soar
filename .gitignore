@@ -2,3 +2,5 @@ build/
 lib/
 *.csv
 sim
+*_test
+results/
