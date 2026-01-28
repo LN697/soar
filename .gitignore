@@ -4,3 +4,4 @@ lib/
 sim
 *_test
 results/
+.vscode

@@ -1,26 +1,37 @@
 #pragma once
 
 #include "types.h"
-#include <utility>
+
+#include <tuple>
 
 struct PropParams {
     Scalar diameter_inch;
     Scalar pitch_inch;
-    // Aerodynamic Coefficients (depend on blade geometry)
-    Scalar thrust_coeff; // Ct
-    Scalar power_coeff;  // Cp
+    
+    Scalar thrust_coeff_static;
+    Scalar power_coeff_static;
+    
+    Scalar ct_decay_linear;
+    Scalar cp_decay_linear;
+    Scalar ground_effect_factor;
+
+    Scalar mach_limit_start; 
+    Scalar mach_limit_slope;
+    Scalar tau_flow_sec; 
 };
 
 class Propeller {
 public:
     Propeller(const PropParams& params);
 
-    // Returns {Thrust (N), Torque_Drag (N*m)} based on RPM
-    std::pair<Scalar, Scalar> getAerodynamics(Scalar rpm, Scalar air_density = 1.225) const;
+    void update(Scalar dt, Scalar rpm, Scalar axial_vel_mps);
+
+    // Getters
+    std::tuple<Scalar, Scalar, Scalar> getAerodynamics(Scalar rpm, Scalar axial_vel_mps, Scalar height_ground_m, Scalar air_density = 1.225) const;
 
 private:
     const PropParams params;
-    // Pre-calculated constants to avoid re-computing diameter math every step
-    Scalar k_thrust;
-    Scalar k_torque;
+    Scalar diameter_m;
+    
+    Scalar state_induced_velocity; 
 };

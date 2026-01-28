@@ -2,9 +2,11 @@
 
 #include <vector>
 #include <array>
+
 #include "types.h"
-#include "motor.h"
+
 #include "battery.h"
+#include "motor.h"
 #include "propeller.h"
 #include "esc.h"
 #include "imu.h"
@@ -45,7 +47,7 @@ class Drone {
 
     private:
         // Components
-        Battery battery;
+        LiPoBattery battery;
         std::vector<Motor> motors;
         std::vector<Propeller> propellers;
         std::vector<ESC> escs;

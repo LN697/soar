@@ -2,7 +2,7 @@
 
 CXX := g++
 STD := -std=c++17
-CXXFLAGS = -O3 -Wall -Wextra -ffast-math $(shell sdl2-config --cflags)
+CXXFLAGS = $(STD) -O3 -Wall -Wextra -ffast-math $(shell sdl2-config --cflags)
 
 # Include directories
 INC_DIRS := $(shell find . -type d -name include 2>/dev/null | sed 's|^./||')
@@ -43,6 +43,12 @@ clean:
 .PHONY: test
 
 test:
-	@echo Testing Battery
-	g++ -std=c++17 $(CPPFLAGS) drone/src/battery.cpp test/test_runner.cpp -o battery_test
-	python3 test/stress_test.py battery_test
+# 	@echo Testing Battery
+# 	g++ -std=c++17 $(CPPFLAGS) drone/src/battery.cpp test/battery/test_runner.cpp -o battery_test
+# 	python3 test/battery/stress_test.py battery_test
+# 	@echo Testing Propulsion
+# 	g++ -std=c++17 $(CPPFLAGS) drone/src/propeller.cpp drone/src/motor.cpp test/propulsion/test_runner.cpp -o propulsion_test
+# 	python3 test/propulsion/stress_test.py propulsion_test
+	@echo Testing ESC
+	g++ -std=c++17 $(CPPFLAGS) drone/src/esc.cpp drone/src/propeller.cpp drone/src/motor.cpp drone/src/battery.cpp test/esc/test_runner.cpp -o esc_test
+	python3 test/esc/stress_test.py esc_test
