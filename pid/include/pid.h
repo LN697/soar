@@ -6,21 +6,17 @@ struct PIDParams {
     double kd = 0.0;
     double output_min = -1.0;
     double output_max = 1.0;
-    double integral_max = 100.0; // Prevent integral windup
+    double integral_max = 100.0;
 };
 
 class PID {
     public:
         PID(const PIDParams& params);
-    
-        // Main update function
-        // error = setpoint - measurement
-        // dt = time step in seconds
+        
         double update(double error, double dt);
     
         void reset();
         
-        // Allow runtime tuning
         void setGains(double kp, double ki, double kd);
     
     private:

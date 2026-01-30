@@ -1,39 +1,66 @@
 #pragma once
 
 #include "types.h"
-#include <random>
 
-struct IMUData {
-    Vec3 accel; // m/s^2
-    Vec3 gyro;  // rad/s
+#include <random>
+#include <vector>
+#include <string>
+
+struct IMUConfig {
+    std::string name = "Generic";
+
+    double accel_noise_density = 0.002; 
+    double gyro_noise_density  = 0.0001; 
+    double accel_bias_instability = 0.0005; 
+    double gyro_bias_instability  = 0.00005; 
+    
+    double accel_init_bias_std = 0.2; 
+    double gyro_init_bias_std  = 0.02; 
+    Mat3 misalignment = Mat3::Identity(); 
+    
+    Vec3 accel_temp_coeff = Vec3(0.005, 0.005, 0.005); 
+    Vec3 gyro_temp_coeff  = Vec3(0.0005, 0.0005, 0.0005); 
+    double accel_vre_coeff = 0.002; 
+    double gyro_g_sensitivity = 0.001; 
+    
+    double accel_deadband_g = 0.0; // Stiction threshold (e.g., 0.01g)
+    
+    double accel_saturation_g = 16.0; 
+    double gyro_saturation_dps = 2000.0; 
+    double sample_rate_hz = 1000.0; 
+    int resolution_bits = 16;       
 };
 
-struct IMUParams {
-    double accel_noise_std = 0.05;  // m/s^2
-    double gyro_noise_std  = 0.002; // rad/s
-    double gyro_bias_std   = 0.005; // rad/s (constant random bias)
+struct IMUData {
+    Vec3 accel; 
+    Vec3 gyro;  
+    double temp_K;
 };
 
 class IMU {
-public:
-    IMU(const IMUParams& params);
-
-    // Feed "True" physics state to generate sensor readings
-    void update(const Vec3& true_accel_body, const Vec3& true_omega_body, double dt);
-
-    IMUData read() const;
-
-private:
-    IMUParams params;
+    public:
+        IMU(const IMUConfig& config, uint32_t seed = 42);
     
-    Vec3 gyro_bias;
+        void update(const Vec3& true_accel, const Vec3& true_gyro, double dt, double temp_K = 298.15);
+        IMUData read() const;
     
-    // Sensor readings
-    Vec3 meas_accel;
-    Vec3 meas_gyro;
-
-    // Random Number Generation
-    std::default_random_engine generator;
-    std::normal_distribution<double> dist_accel;
-    std::normal_distribution<double> dist_gyro;
+        static IMUConfig ConfigMPU6000();  
+        static IMUConfig ConfigBMI270();   
+        static IMUConfig ConfigTactical();
+        static IMUConfig ConfigBadMount();
+    
+    private:
+        IMUConfig cfg;
+        
+        Vec3 current_accel_bias_walk; 
+        Vec3 current_gyro_bias_walk;
+        Vec3 init_accel_bias;         
+        Vec3 init_gyro_bias;
+        
+        IMUData last_reading;
+    
+        std::mt19937 gen;
+        std::normal_distribution<double> dist_std; 
+    
+        Vec3 applyImperfections(const Vec3& signal, const Vec3& total_bias, double saturation, double quantization_step);
 };

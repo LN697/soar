@@ -21,17 +21,16 @@ struct PropParams {
 };
 
 class Propeller {
-public:
-    Propeller(const PropParams& params);
+    public:
+        Propeller(const PropParams& params);
 
-    void update(Scalar dt, Scalar rpm, Scalar axial_vel_mps);
+        void update(Scalar dt, Scalar rpm);
 
-    // Getters
-    std::tuple<Scalar, Scalar, Scalar> getAerodynamics(Scalar rpm, Scalar axial_vel_mps, Scalar height_ground_m, Scalar air_density = 1.225) const;
+        std::tuple<Scalar, Scalar, Scalar> getAerodynamics(Scalar rpm, Scalar axial_vel_mps, Scalar height_ground_m, Scalar air_density = 1.225) const;
 
-private:
-    const PropParams params;
-    Scalar diameter_m;
-    
-    Scalar state_induced_velocity; 
+    private:
+        const PropParams params;
+        Scalar diameter_m;
+
+        Scalar state_induced_velocity; 
 };

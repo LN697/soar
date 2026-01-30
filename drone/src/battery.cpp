@@ -1,4 +1,5 @@
 #include "battery.h"
+
 #include <algorithm>
 #include <cmath>
 #include <iostream>

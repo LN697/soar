@@ -1,10 +1,7 @@
 #include "esc.h"
+
 #include <cmath>
 #include <iostream>
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 ESC::ESC(const EscParams& p) 
     : params(p), 
@@ -25,8 +22,7 @@ ESC::ESC(const EscParams& p)
       reboot_timer(0.0),
       current_limiter_active(false),
       desync_integrator(0.0),
-      internal_time(0.0)
-{
+      internal_time(0.0) {
     if (temperature_K <= 0) temperature_K = 298.15;
     switching_noise = std::normal_distribution<Scalar>(0.0, 0.05); 
     input_noise = std::normal_distribution<Scalar>(0.0, p.signal_jitter);
@@ -55,27 +51,19 @@ Scalar ESC::update(Scalar dt,
                    Scalar throttle_signal, 
                    Scalar battery_voltage, 
                    Scalar motor_rpm, 
-                   Scalar motor_current) 
-{
-    // --- 1. HARDWARE INTERFACE (Cables & Capacitor Physics) ---
-    // Calculate di/dt for inductive spikes
+                   Scalar motor_current) {
     Scalar di_dt = (motor_current - prev_motor_current) / dt;
     prev_motor_current = motor_current;
     
-    // Cable Drops
     Scalar cable_drop_R = motor_current * params.cable_resistance_Ohms;
     Scalar cable_drop_L = params.cable_inductance_H * di_dt;
     
-    // Capacitor Smoothing: High ESR caps dampen spikes poorly
     Scalar cap_delta_T = cap_temperature_K - 298.15;
     current_cap_esr = params.cap_esr_Ohms * (1.0 + params.cap_temp_coeff_esr * cap_delta_T);
-    Scalar damping_factor = 1.0 / (1.0 + (0.01 / current_cap_esr)); 
-    
-    // V_esc = V_batt - IR - L(di/dt)*damping
-    esc_input_voltage = battery_voltage - cable_drop_R - (cable_drop_L * damping_factor);
+    Scalar damping_factor = 1.0 / (1.0 + (0.01 / current_cap_esr));
 
-    // --- 2. BROWN-OUT RESET (MCU Logic Power) ---
-    // If input voltage sags below threshold, MCU resets and cuts output
+    esc_input_voltage = battery_voltage - cable_drop_R - (cable_drop_L * damping_factor);
+    
     if (esc_input_voltage < params.mcu_brownout_V) {
         reboot_timer = params.mcu_boot_time_s;
     }
@@ -86,8 +74,7 @@ Scalar ESC::update(Scalar dt,
         efficiency = 0.0;
         return 0.0; 
     }
-
-    // --- 3. HARD OCP (Circuit Breaker) ---
+    
     if (ocp_latched) { 
         current_output_voltage = 0.0; 
         power_loss_W = 0.0; 
@@ -99,9 +86,7 @@ Scalar ESC::update(Scalar dt,
     } else {
         ocp_timer = std::max(0.0, ocp_timer - dt);
     }
-
-    // --- 4. SOFT CURRENT GOVERNOR (PID Limit) ---
-    // Actively reduce throttle request to maintain safe current
+    
     Scalar current_limit_factor = 1.0;
     current_limiter_active = false;
     if (std::abs(motor_current) > params.soft_current_limit_A) {
