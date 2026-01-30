@@ -1,4 +1,4 @@
-# Documentation — Soar 📚
+# Documentation - Soar
 
 Welcome to the Soar documentation. This short docs set provides a quick orientation and links to the primary reference pages:
 
