@@ -71,7 +71,7 @@ If you want to run individual unit-style tests, see the commented `test` targets
 
 ---
 
-## Implementation Details (short)
+## Implementation Details
 
 - **Battery (`drone/include/battery.h`)**: `LiPoBattery` exposes SoC, voltage, internal resistance, heating power and energy consumed. It keeps an OCV curve and models noise on sensor outputs.
 
@@ -103,7 +103,7 @@ If you want to run individual unit-style tests, see the commented `test` targets
 
 ## Contributing & Roadmap
 
-Contributions welcome — please open issues or PRs. Short-term and long-term plans include:
+Contributions welcome - please open issues or PRs. Short-term and long-term plans include:
 
 - Short-term (next steps)
   - Add a CI pipeline to run unit tests automatically.
